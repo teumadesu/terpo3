@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>逆L字 テロップ</title>
+
+<style>
+body {
+  margin: 0;
+  background: #00ff00; /* クロマキー用 */
+  overflow: hidden;
+}
+
+/* テロップ共通 */
+#ticker {
+  position: fixed;
+  bottom: 30px;
+  width: 100%;
+  background: black;
+  color: white;
+  font-size: 42px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* スクロール */
+#scroll {
+  display: inline-block;
+  padding-left: 100%;
+  animation: scroll 15s linear infinite;
+}
+
+/* EEW警報用 */
+.warning {
+  color: red;
+  animation: scroll 15s linear infinite, blink 1s step-end infinite;
+}
+
+/* アニメーション */
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="ticker">
+  <div id="scroll">
+    <span id="text">
+      当チャンネルのルール。1.誤った情報やデマを拡散しない。2.ほかの人が不快になるようなことを発言しない。3.荒らしなどはおやめください。
+    </span>
+  </div>
+</div>
+
+<script>
+const url = "https://api.p2pquake.net/v2/jma/quake";
+
+const normalText =
+"当チャンネルのルール。1.誤った情報やデマを拡散しない。2.ほかの人が不快になるようなことを発言しない。3.荒らしなどはおやめください。";
+
+const scaleMap = {
+  10:"1",20:"2",30:"3",40:"4",
+  45:"5弱",50:"5強",55:"6弱",60:"6強",70:"7"
+};
+
+let isEEW = false;
+
+async function updateTicker() {
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const eew = data.find(d => d.code === 556);
+
+    const text = document.getElementById("text");
+    const scroll = document.getElementById("scroll");
+
+    if (eew && eew.earthquake) {
+      const epi = eew.earthquake.hypocenter.name;
+      const max = scaleMap[eew.earthquake.maxScale] || "不明";
+      const report = eew.earthquake.serialNo || 1;
+      const warning = eew.earthquake.warning === true;
+
+      if (warning) {
+        text.textContent =
+          `緊急地震速報（警報）第${report}報 推定最大震度${max} 震源${epi}`;
+        scroll.classList.add("warning");
+      } else {
+        text.textContent =
+          `緊急地震速報（予報）第${report}報 推定最大震度${max} 震源${epi}`;
+        scroll.classList.remove("warning");
+      }
+
+      isEEW = true;
+    } else if (isEEW) {
+      text.textContent = normalText;
+      scroll.classList.remove("warning");
+      isEEW = false;
+    }
+  } catch (e) {
+    console.log("取得失敗", e);
+  }
+}
+
+setInterval(updateTicker, 3000);
+</script>
+
+</body>
+</html>
